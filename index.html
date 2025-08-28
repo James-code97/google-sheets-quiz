@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Google Sheets Basics — 5-Minute Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+        /*
+         * CUSTOM CSS STYLES
+         * These styles are used to create the dark theme,
+         * card-like sections, and button hover effects.
+         */
+        :root {
+            --ink: #c9d1d9;
+            --bg: #0d1117;
+            --card: #161b22;
+            --line: #30363d;
+            --blue: #58a6ff;
+            --ok: #2ea043;
+            --bad: #da3633;
+        }
+        html, body {
+            height: 100%;
+        }
+        body {
+            font-family: Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+        }
+        .quiz-card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, .25);
+        }
+        .option-btn {
+            background: #21262d;
+            border: 1px solid var(--line);
+            transition: .2s;
+        }
+        .option-btn:hover:not([disabled]) {
+            background: #30363d;
+            border-color: var(--blue);
+            transform: translateY(-1px);
+        }
+        .option-btn.correct {
+            background: #1f6f3f;
+            border-color: #34d399;
+            color: #fff;
+        }
+        .option-btn.incorrect {
+            background: #8f2725;
+            border-color: #ef4444;
+            color: #fff;
+        }
+        .msg {
+            border-radius: .75rem;
+            padding: 10px 12px;
+        }
+        .msg.error {
+            background: rgba(248, 113, 113, .15);
+            border: 1px solid #ef4444;
+            color: #f87171;
+        }
+        .msg.success {
+            background: rgba(16, 185, 129, .15);
+            border: 1px solid #34d399;
+            color: #10b981;
+        }
+        .check-row {
+            display: flex;
+            align-items: flex-start;
+            gap: .75rem;
+            padding: .75rem 1rem;
+            border: 1px solid var(--line);
+            border-radius: .75rem;
+            background: #21262d;
+        }
+        .check-row input {
+            margin-top: .2rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6">
+    <div class="quiz-card w-full max-w-3xl rounded-2xl p-8">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold mb-1">How well do you know Google Sheets?</h1>
+            <p id="progress-text" class="text-sm text-gray-400">Question 1 of 11</p>
+            <div id="dots" class="flex justify-center gap-2 mt-2"></div>
+            <p id="timer" class="text-2xl font-semibold text-blue-400 mt-2">05:00</p>
+        </div>
+
+        <!-- Start Screen -->
+        <section id="start" class="space-y-4">
+            <label class="block text-lg">Enter your nickname:</label>
+            <input id="nick" class="w-full rounded-xl bg-[#0d1117] border border-[var(--line)] p-3 text-center" placeholder="Your name"/>
+            <p id="nickErr" class="hidden msg error">Please enter a nickname to start.</p>
+            <div class="flex gap-4">
+                <button id="startBtn" class="flex-1 rounded-xl py-3 font-bold bg-[var(--blue)] text-black">Start Quiz</button>
+                <button id="loginBtn" class="flex-1 rounded-xl py-3 font-bold bg-gray-600 text-white">Trainer Login</button>
+            </div>
+        </section>
+
+        <!-- Quiz Screen -->
+        <section id="quiz" class="hidden">
+            <img id="visual" class="w-full rounded-lg mb-4" alt="Quiz visual" onerror="this.style.display='none'"/>
+            <p id="qText" class="text-2xl font-semibold mb-4">Loading…</p>
+            <div id="opts" class="grid grid-cols-1 gap-4 mb-4"></div>
+            <p id="feedback" class="hidden msg"></p>
+            <div class="flex gap-3">
+                <button id="next" class="flex-1 rounded-xl py-3 font-bold bg-[var(--blue)] text-black" disabled>Next Question</button>
+            </div>
+        </section>
+
+        <!-- Score Screen -->
+        <section id="score" class="hidden text-center">
+            <p class="text-2xl font-bold">You scored <span id="finalScore"></span> / 10</p>
+            <p id="finalName" class="text-gray-400 mt-1"></p>
+            <p id="finalTime" class="text-gray-400 mt-1"></p>
+            <button id="again" class="mt-6 rounded-xl py-3 px-6 font-bold bg-[var(--ok)] text-white">Try Again?</button>
+        </section>
+
+        <!-- Trainer Scoreboard -->
+        <section id="leaderboard" class="hidden">
+            <h2 class="text-3xl font-bold text-center mb-6">Participant Scores</h2>
+            <div class="overflow-y-auto max-h-96 rounded-xl border border-[var(--line)]">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="bg-gray-800">
+                            <th class="px-6 py-3 text-left font-semibold text-gray-400">Rank</th>
+                            <th class="px-6 py-3 text-left font-semibold text-gray-400">Nickname</th>
+                            <th class="px-6 py-3 text-left font-semibold text-gray-400">Score</th>
+                            <th class="px-6 py-3 text-left font-semibold text-gray-400">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scoreTableBody" class="bg-[var(--card)]">
+                        <!-- Scoreboard data will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+            <button id="backToStart" class="w-full mt-6 rounded-xl py-3 font-bold bg-gray-600 text-white">Back to Quiz</button>
+        </section>
+        
+        <p class="text-xs text-gray-500 italic mt-6 text-center">Made with love by 90star</p>
+    </div>
+
+    <script type="module">
+        // ===================================
+        // ======== FIREBASE IMPORTS =========
+        // ===================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ===================================
+        // =========== DOM ELEMENTS ==========
+        // ===================================
+
+        // Helper function to get an element by its ID
+        const $ = id => document.getElementById(id);
+        
+        // Main screen sections
+        const start = $('start'), quiz = $('quiz'), scoreScreen = $('score'), leaderboard = $('leaderboard');
+
+        // Buttons and inputs on the start screen
+        const startBtn = $('startBtn');
+        const nick = $('nick'), nickErr = $('nickErr');
+        const loginBtn = $('loginBtn');
+
+        // Quiz elements
+        const qText = $('qText'), opts = $('opts'), feedback = $('feedback'), next = $('next'), visual = $('visual');
+
+        // Progress indicators
+        const progressText = $('progress-text'), dots = $('dots'), timer = $('timer');
+
+        // Score screen elements
+        const finalScore = $('finalScore'), finalName = $('finalName'), finalTime = $('finalTime'), again = $('again');
+
+        // Leaderboard elements
+        const scoreTableBody = $('scoreTableBody'), backToStartBtn = $('backToStart');
+
+        // ===================================
+        // ============ QUIZ DATA ============
+        // ===================================
+
+        const TOTAL_TIME = 300; // 5 minutes in seconds
+        const QUESTIONS = [
+            // Single-choice questions (1-10)
+            { type: 'single', question: 'What is a cell in Google Sheets?', visualUrl: '', options: ['A group of many boxes', 'A single box for data', 'A whole row', 'A whole column'], correctAnswerIndex: 1 },
+            { type: 'single', question: 'How is each cell identified?', visualUrl: '', options: ['By a color', 'By row number only', 'By column letter + row number (e.g., B2)', 'By sheet name'], correctAnswerIndex: 2 },
+            { type: 'single', question: 'What is a row?', visualUrl: '', options: ['A vertical line of cells', 'A horizontal line of cells', 'A single box for data', 'A group of sheets'], correctAnswerIndex: 1 },
+            { type: 'single', question: 'What is a column?', visualUrl: '', options: ['A horizontal line of cells', 'A vertical line of cells', 'A group of many rows', 'A whole workbook'], correctAnswerIndex: 1 },
+            { type: 'single', question: 'What is a range?', visualUrl: '', options: ['A single box in the sheet', 'A group of sheets inside a file', 'A block of cells selected together', 'A color rule in formatting'], correctAnswerIndex: 2 },
+            { type: 'single', question: 'What is a sheet (tab)?', visualUrl: '', options: ['A single page inside the spreadsheet file', 'A group of rows and columns only', 'The whole spreadsheet file', 'A type of formatting rule'], correctAnswerIndex: 0 },
+            { type: 'single', question: 'What is a workbook (spreadsheet file)?', visualUrl: '', options: ['Only one page in the file', 'The whole file with many sheets', 'A group of ranges inside one sheet', 'A row and column together'], correctAnswerIndex: 1 },
+            { type: 'single', question: 'What is a reference?', visualUrl: '', options: ["A way to change a cell's color", 'How you point to another cell', 'A dropdown list of data', 'A sheet inside the file'], correctAnswerIndex: 1 },
+            { type: 'single', question: 'What is an absolute reference?', visualUrl: '', options: ['A reference that always changes when copied', 'A fixed reference that does not change', 'A reference to a whole sheet', 'A reference to many rows'], correctAnswerIndex: 1 },
+            { type: 'single', question: 'What is conditional formatting?', visualUrl: '', options: ['A way to lock cells from changes', 'A feature that changes a cell\'s style/color based on its value', 'A rule to check if input is correct', 'A formula to calculate numbers'], correctAnswerIndex: 1 },
+            // Multi-select question (11) - not scored, for feedback only
+            {
+                type: 'multi',
+                question: 'Select the box next to the formulas that you can confidently use without external assistance.',
+                visualUrl: 'https://placehold.co/800x400/1d2127/58a6ff?text=Google+Sheets+Formulas+%26+Results+%0A%0A%3DAVG(A1%3AA3)%3A+30%0A%3DSUM(B1%3AB3)%3A+150%0A%3DIF(C1%3E50%2C%22OK%22%2C%22NO%22)%3A+OK%0A%3DXLOOKUP(10%2CA1%3AB3%2CB1%3AB3)%3A+40',
+                options: [
+                    'SUM — =SUM(B2:B100)', 'AVERAGE — =AVERAGE(B2:B100)', 'COUNT — =COUNT(B2:B100)',
+                    'IF — =IF(C2>=50,"Pass","Fail")', 'COUNTIF — =COUNTIF(A2:A100,"Pass")',
+                    'SUMIF — =SUMIF(A2:A100,"Pharmacy",C2:C100)', 'XLOOKUP — =XLOOKUP(E2, A2:A100, C2:C100, "Not found")',
+                    'FILTER — =FILTER(A2:D100, C2:C100="Pass")', 'UNIQUE — =UNIQUE(A2:A100)'
+                ]
+            },
+        ];
+
+        // ===================================
+        // =========== APP STATE =============
+        // ===================================
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
+        let db, auth, userId;
+        let timeLeft = TOTAL_TIME;
+        let idx = 0; // Current question index
+        let score = 0; // User's score
+        let timerId = null; // ID for the timer interval
+        let checklistSelections = []; // Stores selections for the final checklist question
+
+        // ===================================
+        // =========== FIREBASE INIT =========
+        // ===================================
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+        
+        // Sign in anonymously for regular users, or with custom token for authenticated users
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined') {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Firebase Auth Error:", error);
+                }
+            }
+            userId = auth.currentUser?.uid || crypto.randomUUID();
+        });
+
+
+        // ===================================
+        // =========== CORE FUNCTIONS ========
+        // ===================================
+
+        // Helper function to pad numbers with a leading zero for time display
+        const pad = n => (n < 10 ? '0' : '') + n;
+
+        // Function to control which section is visible
+        function showOnly(section) {
+            [start, quiz, scoreScreen, leaderboard].forEach(s => s.classList.add('hidden'));
+            section.classList.remove('hidden');
+        }
+
+        // Renders the progress dots at the top of the quiz
+        function renderDots() {
+            dots.innerHTML = '';
+            for (let i = 0; i < QUESTIONS.length; i++) {
+                const d = document.createElement('div');
+                d.className = 'w-3 h-3 rounded-full ' + (i === idx ? 'bg-blue-400' : 'bg-[#30363d]');
+                dots.appendChild(d);
+            }
+        }
+
+        // Sets the text of the timer
+        function setTimer() {
+            timer.textContent = `${pad(Math.floor(timeLeft / 60))}:${pad(timeLeft % 60)}`;
+        }
+
+        // Stops the timer interval
+        function stopTimer() {
+            if (timerId) {
+                clearInterval(timerId);
+                timerId = null;
+            }
+        }
+
+        // Starts the timer countdown
+        function startTimer() {
+            stopTimer(); // Ensure any existing timer is cleared
+            timerId = setInterval(() => {
+                timeLeft--;
+                setTimer();
+                if (timeLeft <= 0) {
+                    finish(true); // Call finish() if time runs out
+                }
+            }, 1000);
+        }
+
+        // Renders the current question and its options
+        function renderQuestion() {
+            const q = QUESTIONS[idx];
+            qText.textContent = `Q${idx + 1}. ${q.question}`;
+            progressText.textContent = `Question ${idx + 1} of ${QUESTIONS.length}`;
+            renderDots();
+            if (q.visualUrl) {
+                visual.src = q.visualUrl;
+                visual.style.display = 'block';
+            } else {
+                visual.style.display = 'none';
+            }
+            opts.innerHTML = '';
+            feedback.classList.add('hidden');
+            feedback.classList.remove('error', 'success');
+            next.disabled = true;
+            next.textContent = (q.type === 'multi' ? 'Submit Selections' : 'Next Question');
+
+            // Logic for multi-select checklist question
+            if (q.type === 'multi') {
+                q.options.forEach((optText, i) => {
+                    const row = document.createElement('label');
+                    row.className = 'check-row';
+                    row.innerHTML = `<input type="checkbox" value="${i}"><span class="font-medium">${optText}</span>`;
+                    opts.appendChild(row);
+                });
+                // Enable/disable the next button based on selection count
+                const updateNext = () => { next.disabled = opts.querySelectorAll('input[type="checkbox"]:checked').length === 0; };
+                opts.addEventListener('change', updateNext);
+                updateNext();
+                next.onclick = () => {
+                    checklistSelections = [...opts.querySelectorAll('input[type="checkbox"]:checked')].map(el => q.options[Number(el.value)]);
+                    idx++;
+                    (idx < QUESTIONS.length) ? renderQuestion() : finish(false);
+                };
+            } else { // Logic for single-choice questions
+                q.options.forEach((optText, i) => {
+                    const b = document.createElement('button');
+                    b.className = 'option-btn rounded-xl p-4 text-left font-medium';
+                    b.textContent = optText;
+                    b.dataset.index = i;
+                    b.onclick = () => selectSingle(i);
+                    opts.appendChild(b);
+                });
+                next.onclick = () => {
+                    idx++;
+                    (idx < QUESTIONS.length) ? renderQuestion() : finish(false);
+                };
+            }
+        }
+
+        // Handles the selection logic for a single-choice question
+        function selectSingle(i) {
+            const q = QUESTIONS[idx];
+            const btns = [...opts.querySelectorAll('button')];
+            btns.forEach(b => b.disabled = true); // Disable all buttons after a selection is made
+
+            if (i === q.correctAnswerIndex) {
+                score++;
+                btns[i].classList.add('correct');
+                feedback.textContent = 'Correct!';
+                feedback.className = 'msg success';
+                feedback.classList.remove('hidden');
+            } else {
+                btns[i].classList.add('incorrect');
+                const c = q.correctAnswerIndex;
+                btns[c].classList.add('correct');
+                feedback.textContent = 'Incorrect. Correct answer is highlighted.';
+                feedback.className = 'msg error';
+                feedback.classList.remove('hidden');
+            }
+            next.disabled = false; // Enable the next button
+        }
+        
+        // Displays the leaderboard
+        function renderLeaderboard() {
+            showOnly(leaderboard);
+            scoreTableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4">Loading scores...</td></tr>';
+
+            const scoresRef = collection(db, `artifacts/${appId}/public/data/scores`);
+            // Use onSnapshot for real-time updates
+            onSnapshot(scoresRef, (querySnapshot) => {
+                const scores = [];
+                querySnapshot.forEach((doc) => {
+                    scores.push(doc.data());
+                });
+
+                // Sort the scores based on score (descending) and time (ascending)
+                scores.sort((a, b) => {
+                    if (b.score !== a.score) {
+                        return b.score - a.score;
+                    }
+                    return a.timeTaken - b.timeTaken;
+                });
+                
+                scoreTableBody.innerHTML = '';
+                if (scores.length > 0) {
+                    scores.forEach((s, index) => {
+                        const row = `
+                            <tr class="border-b border-[var(--line)]">
+                                <td class="px-6 py-4">${index + 1}</td>
+                                <td class="px-6 py-4">${s.nickname}</td>
+                                <td class="px-6 py-4">${s.score}</td>
+                                <td class="px-6 py-4">${pad(Math.floor(s.timeTaken / 60))}:${pad(s.timeTaken % 60)}</td>
+                            </tr>
+                        `;
+                        scoreTableBody.innerHTML += row;
+                    });
+                } else {
+                    scoreTableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400">No scores recorded yet.</td></tr>';
+                }
+            });
+        }
+
+        // Finishes the quiz, calculates the final score, and saves it.
+        async function finish() {
+            stopTimer();
+            const timeTaken = TOTAL_TIME - timeLeft;
+            const minutes = Math.floor(timeTaken / 60);
+            const seconds = timeTaken % 60;
+            finalScore.textContent = score; // Display score out of 10
+            finalName.textContent = `Great job, ${nick.value || 'Participant'}!`;
+            finalTime.textContent = `Time Spent: ${pad(minutes)}:${pad(seconds)}`;
+
+            // Save the score to Firestore
+            if (auth.currentUser) {
+                const scoreData = {
+                    nickname: nick.value || `Anonymous-${userId.substring(0, 5)}`,
+                    score: score,
+                    timeTaken: timeTaken,
+                    timestamp: new Date()
+                };
+                try {
+                    const docRef = doc(db, `artifacts/${appId}/public/data/scores`, userId);
+                    await setDoc(docRef, scoreData);
+                    console.log("Score saved successfully!");
+                } catch (e) {
+                    console.error("Error adding document: ", e);
+                }
+            }
+            showOnly(scoreScreen);
+        }
+
+
+        // ===================================
+        // ======== EVENT LISTENERS ==========
+        // ===================================
+
+        // "Try Again" button on the score screen
+        again.onclick = () => {
+            idx = 0;
+            score = 0;
+            timeLeft = TOTAL_TIME;
+            setTimer();
+            showOnly(start);
+            nick.value = '';
+        };
+
+        // "Start Quiz" button on the start screen
+        startBtn.onclick = () => {
+            if (!nick.value.trim()) {
+                nickErr.classList.remove('hidden');
+                return;
+            }
+            nickErr.classList.add('hidden');
+            showOnly(quiz);
+            setTimer();
+            startTimer();
+            renderQuestion();
+        };
+
+        // "Trainer Login" button
+        loginBtn.onclick = () => {
+            renderLeaderboard();
+        };
+
+        // "Back to Quiz" button
+        backToStartBtn.onclick = () => {
+            showOnly(start);
+        };
+
+
+        // ===================================
+        // ========= INITIALIZATION ==========
+        // ===================================
+
+        // Initial setup when the page loads
+        showOnly(start);
+        setTimer();
+        renderDots();
+    </script>
+</body>
+</html>
